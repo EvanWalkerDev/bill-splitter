@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script> 
-	<script src="https://unpkg.com/dragdroptouch-bug-fixed@1.2.3/dist/DragDropTouch.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FairShare // Mobile-Friendly Standard Splitter</title>
+    <title>FairShare // Ultimate Feature-Packed Splitter</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
@@ -89,7 +87,7 @@
             padding: 12px;
             border: 1px solid var(--border);
             border-radius: 6px;
-            font-size: 1rem; /* Stops iOS from auto-zooming inputs */
+            font-size: 1rem;
             width: 100%;
             background: white;
         }
@@ -196,7 +194,6 @@
         .assigned-item .remove-btn { color: var(--danger); cursor: pointer; font-weight: bold; padding: 2px 6px; }
         .delete-zone-btn { position: absolute; top: 12px; right: 12px; cursor: pointer; color: #a0aec0; font-weight: bold; font-size: 1.1rem; padding: 4px; }
 
-        /* Pipeline & Tandem Layout Styles */
         .pipeline-container {
             display: flex;
             flex-direction: column;
@@ -255,7 +252,7 @@
         }
 
         .receipt-card {
-            background: var(--receipt-bg); border: 1px dashed var(--border); border-radius: 8px;
+            background: var(--receipt-bg); border: 1px solid var(--border); border-style: dashed; border-radius: 8px;
             padding: 18px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
             display: flex; flex-direction: column; font-family: 'Courier New', Courier, monospace;
         }
@@ -274,7 +271,18 @@
             cursor: pointer; text-decoration: none; color: var(--text-main); font-weight: 500;
         }
 
-        .grand-total { font-size: 1.6rem; font-weight: bold; text-align: right; margin-top: 25px; color: var(--accent); border-top: 2px dashed var(--border); padding-top: 15px; }
+        .grand-total-container {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 15px;
+            margin-top: 25px;
+            border-top: 2px dashed var(--border);
+            padding-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .grand-total { font-size: 1.6rem; font-weight: bold; color: var(--accent); margin: 0; }
     </style>
 </head>
 <body>
@@ -339,7 +347,11 @@
                         Set up your table map to instantly generate clean receipt cards.
                     </div>
                 </div>
-                <div class="grand-total" id="grand-total">Grand Total: $0.00</div>
+                
+                <div class="grand-total-container">
+                    <button id="export-all-pdf-btn" class="secondary" style="display: none; padding: 10px 14px; font-size: 0.9rem;">📦 Download All Receipts (Single PDF)</button>
+                    <div class="grand-total" id="grand-total">Grand Total: $0.00</div>
+                </div>
             </div>
         </div>
     </div>
@@ -370,6 +382,7 @@
     const pipelineContainer = document.getElementById('pipeline-container');
     const receiptsContainer = document.getElementById('receipts-container');
     const grandTotalEl = document.getElementById('grand-total');
+    const exportAllPdfBtn = document.getElementById('export-all-pdf-btn');
 
     let activeDraggedDish = null;
     let activeDraggedNodeIndex = null;
@@ -419,6 +432,8 @@
         calculateTotals();
     });
 
+    exportAllPdfBtn.addEventListener('click', exportAllReceiptsToPDF);
+
     function renderIndividualCheckboxes() {
         checkboxPool.innerHTML = '';
         if (people.length === 0) {
@@ -435,60 +450,44 @@
 
     function renderMenu() {
         menuContainer.innerHTML = '';
-		menuMaster.forEach(dish => {
-			const card = document.createElement('div');
-			card.className = 'dish-card';
-			card.setAttribute('draggable', 'true');
-			
-			// CRUCIAL SAFARI FIX: Forces iOS to recognize this div as an interactive, clickable link
-			card.style.cursor = 'pointer'; 
-			
-			card.innerHTML = `<span>${dish.name}</span><span><span class="price">$${dish.price.toFixed(2)}</span><span class="delete-menu-item" data-id="${dish.id}">&times;</span></span>`;
-			
-			// Desktop Drag Handler
-			card.addEventListener('dragstart', () => activeDraggedDish = dish);
-			
-			// Main Execution Prompt
-			const triggerAssignment = (e) => {
-				if (e.target.classList.contains('delete-menu-item')) return;
-				e.preventDefault(); // Stop double-firing on devices that support both touch and click
-				handleMobileDishSelection(dish);
-			};
+        menuMaster.forEach(dish => {
+            const card = document.createElement('div');
+            card.className = 'dish-card';
+            card.setAttribute('draggable', 'true');
+            card.innerHTML = `<span>${dish.name}</span><span><span class="price">$${dish.price.toFixed(2)}</span><span class="delete-menu-item" data-id="${dish.id}">&times;</span></span>`;
+            
+            card.addEventListener('dragstart', () => activeDraggedDish = dish);
+            card.style.cursor = 'pointer'; 
+            
+            card.addEventListener('click', (e) => {
+                if (e.target.className === 'delete-menu-item') return;
+                handleMobileDishSelection(dish);
+            });
 
-			// 📱 MOBILE FIX: Native mobile finger-lift listener
-			card.addEventListener('touchend', triggerAssignment);
-			
-			// 💻 DESKTOP FALLBACK: Standard mouse click listener
-			card.addEventListener('click', triggerAssignment);
-
-			card.querySelector('.delete-menu-item').addEventListener('click', (e) => {
-				menuMaster = menuMaster.filter(d => d.id !== e.target.dataset.id);
-				renderMenu();
-			});
-			menuContainer.appendChild(card);
-		});
+            card.querySelector('.delete-menu-item').addEventListener('click', (e) => {
+                menuMaster = menuMaster.filter(d => d.id !== e.target.dataset.id);
+                renderMenu();
+            });
+            menuContainer.appendChild(card);
+        });
     }
 
-    // THE MOBILE TOUCH INTERACTION ENGINE
     function handleMobileDishSelection(dish) {
         if (people.length === 0 && customGroups.length === 0) {
             alert("Add friends or groups first before assigning dishes!");
             return;
         }
 
-        // Build a temporary interactive system select prompt menu string
         let optionsList = "Where do you want to place this item?\nType the number below:\n\n";
         let indexMap = [];
         let optionCounter = 1;
 
-        // Map Groups
         customGroups.forEach(g => {
             optionsList += `${optionCounter}. Group: ${g.name}\n`;
             indexMap.push({ type: 'group', id: g.id });
             optionCounter++;
         });
 
-        // Map Individuals
         people.forEach(p => {
             optionsList += `${optionCounter}. Individual: ${p}\n`;
             indexMap.push({ type: 'individual', id: p });
@@ -609,104 +608,103 @@
     }
 
     function renderPipeline() {
-	    pipelineContainer.innerHTML = '';
-	    let insideTandemGroup = false;
-	
-	    feePipeline.forEach((fee, index) => {
-	        const isCurrentLinked = fee.linkedToNext && index < feePipeline.length - 1;
-	        const visuallyInTandem = insideTandemGroup || isCurrentLinked;
-	
-	        const node = document.createElement('div');
-	        node.className = `fee-node ${visuallyInTandem ? 'in-tandem' : ''}`;
-	        node.setAttribute('draggable', 'true');
-	        
-	        // Repositioned up/down arrows to live between the unit indicator and the delete cross
-	        node.innerHTML = `
-	            <div class="node-details" style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
-	                <strong>${fee.name}</strong>
-	                <input type="number" value="${fee.value}" step="0.001" style="padding:6px; max-width:65px; margin-left: auto;">
-	                <span style="min-width: 12px; font-weight: 500;">${fee.type === 'percent' ? '%' : '$'}</span>
-	            </div>
-	            
-	            <div style="display: flex; flex-direction: column; gap: 2px; margin: 0 12px 0 8px;">
-	                <button class="arrow-move-btn" data-dir="up" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▲</button>
-	                <button class="arrow-move-btn" data-dir="down" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▼</button>
-	            </div>
-	            
-	            <span class="remove-node" style="cursor:pointer; font-weight:bold; padding: 4px; font-size: 1.1rem; color: #a0aec0; display: inline-block;">&times;</span>
-	        `;
-	
-	        // Handle Up / Down movements via tapping
-	        node.querySelectorAll('.arrow-move-btn').forEach(btn => {
-	            btn.addEventListener('click', (e) => {
-	                e.stopPropagation();
-	                const direction = btn.getAttribute('data-dir');
-	                if (direction === 'up' && index > 0) {
-	                    const temp = feePipeline[index];
-	                    feePipeline[index] = feePipeline[index - 1];
-	                    feePipeline[index - 1] = temp;
-	                } else if (direction === 'down' && index < feePipeline.length - 1) {
-	                    const temp = feePipeline[index];
-	                    feePipeline[index] = feePipeline[index + 1];
-	                    feePipeline[index + 1] = temp;
-	                }
-	                renderPipeline();
-	                calculateTotals();
-	            });
-	        });
-	
-	        node.querySelector('input').addEventListener('input', (e) => {
-	            fee.value = parseFloat(e.target.value) || 0;
-	            calculateTotals();
-	        });
-	
-	        node.querySelector('.remove-node').addEventListener('click', () => {
-	            feePipeline = feePipeline.filter(f => f.id !== fee.id);
-	            renderPipeline();
-	            calculateTotals();
-	        });
-	
-	        // Desktop drag mechanics fallback
-	        node.addEventListener('dragstart', () => { activeDraggedNodeIndex = index; node.classList.add('drag-active'); });
-	        node.addEventListener('dragend', () => { activeDraggedNodeIndex = null; node.classList.remove('drag-active'); });
-	        node.addEventListener('dragover', (e) => {
-	            e.preventDefault();
-	            if (index === activeDraggedNodeIndex) return;
-	            const target = feePipeline.splice(activeDraggedNodeIndex, 1)[0];
-	            feePipeline.splice(index, 0, target);
-	            activeDraggedNodeIndex = index;
-	            renderPipeline();
-	            calculateTotals();
-	        });
-	
-	        pipelineContainer.appendChild(node);
-	
-	        if (index < feePipeline.length - 1) {
-	            const linkContainer = document.createElement('div');
-	            linkContainer.className = 'tandem-link-container';
-	            linkContainer.innerHTML = `
-	                <div class="tandem-line-hook ${isCurrentLinked ? 'linked' : ''}"></div>
-	                <button class="link-btn ${isCurrentLinked ? 'linked' : ''}">
-	                    ${isCurrentLinked ? '🔗 Linked Tandem' : '➕ Link Tandem'}
-	                </button>
-	            `;
-	            linkContainer.querySelector('.link-btn').addEventListener('click', () => {
-	                fee.linkedToNext = !fee.linkedToNext;
-	                renderPipeline();
-	                calculateTotals();
-	            });
-	            pipelineContainer.appendChild(linkContainer);
-	        }
-	        insideTandemGroup = isCurrentLinked;
-	    });
-	}
+        pipelineContainer.innerHTML = '';
+        let insideTandemGroup = false;
+
+        feePipeline.forEach((fee, index) => {
+            const isCurrentLinked = fee.linkedToNext && index < feePipeline.length - 1;
+            const visuallyInTandem = insideTandemGroup || isCurrentLinked;
+
+            const node = document.createElement('div');
+            node.className = `fee-node ${visuallyInTandem ? 'in-tandem' : ''}`;
+            node.setAttribute('draggable', 'true');
+            node.innerHTML = `
+                <div class="node-details" style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
+                    <strong>${fee.name}</strong>
+                    <input type="number" value="${fee.value}" step="0.001" style="padding:6px; max-width:65px; margin-left: auto;">
+                    <span style="min-width: 12px; font-weight: 500;">${fee.type === 'percent' ? '%' : '$'}</span>
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 2px; margin: 0 12px 0 8px;">
+                    <button class="arrow-move-btn" data-dir="up" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▲</button>
+                    <button class="arrow-move-btn" data-dir="down" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▼</button>
+                </div>
+                
+                <span class="remove-node" style="cursor:pointer; font-weight:bold; padding: 4px; font-size: 1.1rem; color: #a0aec0; display: inline-block;">&times;</span>
+            `;
+
+            node.querySelectorAll('.arrow-move-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const direction = btn.getAttribute('data-dir');
+                    if (direction === 'up' && index > 0) {
+                        const temp = feePipeline[index];
+                        feePipeline[index] = feePipeline[index - 1];
+                        feePipeline[index - 1] = temp;
+                    } else if (direction === 'down' && index < feePipeline.length - 1) {
+                        const temp = feePipeline[index];
+                        feePipeline[index] = feePipeline[index + 1];
+                        feePipeline[index + 1] = temp;
+                    }
+                    renderPipeline();
+                    calculateTotals();
+                });
+            });
+
+            node.querySelector('input').addEventListener('input', (e) => {
+                fee.value = parseFloat(e.target.value) || 0;
+                calculateTotals();
+            });
+
+            node.querySelector('.remove-node').addEventListener('click', () => {
+                feePipeline = feePipeline.filter(f => f.id !== fee.id);
+                renderPipeline();
+                calculateTotals();
+            });
+
+            node.addEventListener('dragstart', () => { activeDraggedNodeIndex = index; node.classList.add('drag-active'); });
+            node.addEventListener('dragend', () => { activeDraggedNodeIndex = null; node.classList.remove('drag-active'); });
+            node.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (index === activeDraggedNodeIndex) return;
+                const target = feePipeline.splice(activeDraggedNodeIndex, 1)[0];
+                feePipeline.splice(index, 0, target);
+                activeDraggedNodeIndex = index;
+                renderPipeline();
+                calculateTotals();
+            });
+
+            pipelineContainer.appendChild(node);
+
+            if (index < feePipeline.length - 1) {
+                const linkContainer = document.createElement('div');
+                linkContainer.className = 'tandem-link-container';
+                linkContainer.innerHTML = `
+                    <div class="tandem-line-hook ${isCurrentLinked ? 'linked' : ''}"></div>
+                    <button class="link-btn ${isCurrentLinked ? 'linked' : ''}">
+                        ${isCurrentLinked ? '🔗 Linked Tandem' : '➕ Link Tandem'}
+                    </button>
+                `;
+                linkContainer.querySelector('.link-btn').addEventListener('click', () => {
+                    fee.linkedToNext = !fee.linkedToNext;
+                    renderPipeline();
+                    calculateTotals();
+                });
+                pipelineContainer.appendChild(linkContainer);
+            }
+            insideTandemGroup = isCurrentLinked;
+        });
+    }
 
     function calculateTotals() {
         if (people.length === 0) {
             receiptsContainer.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #a0aec0; padding: 20px;">Set up your table map to instantly generate clean receipt cards.</div>`;
             grandTotalEl.textContent = 'Grand Total: $0.00';
+            exportAllPdfBtn.style.display = 'none';
             return;
         }
+
+        exportAllPdfBtn.style.display = 'inline-block';
 
         const itemisedLinesMap = {};
         const subtotalMap = {};
@@ -863,6 +861,43 @@
 
         html2pdf().set(opt).from(clonedElement).save();
     }
+
+	// UPDATED FULL PORTFOLIO EXPORT PIPELINE
+	function exportAllReceiptsToPDF() {
+		// Create an isolated virtual staging container hidden in memory
+		const printStagingContainer = document.createElement('div');
+		printStagingContainer.style.width = "450px"; // Widened slightly to scale nicely on standard A4/Letter formats
+		printStagingContainer.style.padding = "5px";
+		printStagingContainer.style.background = "#ffffff";
+		
+		// Query every generated receipt card element currently on the page
+		const allReceiptCards = document.querySelectorAll('.receipts-wrapper .receipt-card');
+		
+		allReceiptCards.forEach((card) => {
+			const cardClone = card.cloneNode(true);
+			cardClone.style.marginBottom = "20px"; // Adds space directly between stacked receipts
+			cardClone.style.boxShadow = "none";
+			cardClone.style.background = "#f7fafc";
+			
+			// CRUCIAL PRINT FIX: Tells the PDF engine never to slice a receipt card horizontally.
+			// If it doesn't fit neatly at the bottom of the page, it hops to the top of the next page.
+			cardClone.style.pageBreakInside = "avoid";
+			cardClone.style.breakInside = "avoid";
+			
+			printStagingContainer.appendChild(cardClone);
+		});
+
+		const opt = {
+			margin:       15,
+			filename:     `FairShare_Complete_Bill_Breakdown.pdf`,
+			image:        { type: 'jpeg', quality: 0.98 },
+			html2canvas:  { scale: 2, logging: false, scrollY: 0, scrollX: 0 },
+			jsPDF:        { unit: 'mm', format: 'letter', orientation: 'portrait' } // Uses standard Letter paper size
+		};
+
+		// Execute background worker task pipeline using the cleanly packed clone stack
+		html2pdf().set(opt).from(printStagingContainer).save();
+	}
 
     renderPipeline();
 </script>
