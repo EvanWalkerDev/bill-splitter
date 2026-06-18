@@ -609,70 +609,97 @@
     }
 
     function renderPipeline() {
-        pipelineContainer.innerHTML = '';
-        let insideTandemGroup = false;
-
-        feePipeline.forEach((fee, index) => {
-            const isCurrentLinked = fee.linkedToNext && index < feePipeline.length - 1;
-            const visuallyInTandem = insideTandemGroup || isCurrentLinked;
-
-            const node = document.createElement('div');
-            node.className = `fee-node ${visuallyInTandem ? 'in-tandem' : ''}`;
-            node.setAttribute('draggable', 'true');
-            node.innerHTML = `
-                <div class="node-details">
-                    <span style="color:#718096; font-size:1.1rem;">☰</span>
-                    <strong>${fee.name}</strong>
-                    <input type="number" value="${fee.value}" step="0.001" style="padding:4px; max-width:65px;">
-                    <span>${fee.type === 'percent' ? '%' : '$'}</span>
-                </div>
-                <span class="remove-node">&times;</span>
-            `;
-
-            node.querySelector('input').addEventListener('input', (e) => {
-                fee.value = parseFloat(e.target.value) || 0;
-                calculateTotals();
-            });
-
-            node.querySelector('.remove-node').addEventListener('click', () => {
-                feePipeline = feePipeline.filter(f => f.id !== fee.id);
-                renderPipeline();
-                calculateTotals();
-            });
-
-            node.addEventListener('dragstart', () => { activeDraggedNodeIndex = index; node.classList.add('drag-active'); });
-            node.addEventListener('dragend', () => { activeDraggedNodeIndex = null; node.classList.remove('drag-active'); });
-            node.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                if (index === activeDraggedNodeIndex) return;
-                const target = feePipeline.splice(activeDraggedNodeIndex, 1)[0];
-                feePipeline.splice(index, 0, target);
-                activeDraggedNodeIndex = index;
-                renderPipeline();
-                calculateTotals();
-            });
-
-            pipelineContainer.appendChild(node);
-
-            if (index < feePipeline.length - 1) {
-                const linkContainer = document.createElement('div');
-                linkContainer.className = 'tandem-link-container';
-                linkContainer.innerHTML = `
-                    <div class="tandem-line-hook ${isCurrentLinked ? 'linked' : ''}"></div>
-                    <button class="link-btn ${isCurrentLinked ? 'linked' : ''}">
-                        ${isCurrentLinked ? '🔗 Linked Tandem' : '➕ Link Tandem'}
-                    </button>
-                `;
-                linkContainer.querySelector('.link-btn').addEventListener('click', () => {
-                    fee.linkedToNext = !fee.linkedToNext;
-                    renderPipeline();
-                    calculateTotals();
-                });
-                pipelineContainer.appendChild(linkContainer);
-            }
-            insideTandemGroup = isCurrentLinked;
-        });
-    }
+	    pipelineContainer.innerHTML = '';
+	    let insideTandemGroup = false;
+	
+	    feePipeline.forEach((fee, index) => {
+	        const isCurrentLinked = fee.linkedToNext && index < feePipeline.length - 1;
+	        const visuallyInTandem = insideTandemGroup || isCurrentLinked;
+	
+	        const node = document.createElement('div');
+	        node.className = `fee-node ${visuallyInTandem ? 'in-tandem' : ''}`;
+	        node.setAttribute('draggable', 'true');
+	        
+	        // Added tap-friendly 🔼 and 🔽 buttons on the left side of the item card
+	        node.innerHTML = `
+	            <div class="node-details">
+	                <div style="display: flex; flex-direction: column; gap: 2px; margin-right: 8px;">
+	                    <button class="arrow-move-btn" data-dir="up" style="padding: 2px 6px; font-size: 0.65rem; background: #e2e8f0; color: #4a5568;">▲</button>
+	                    <button class="arrow-move-btn" data-dir="down" style="padding: 2px 6px; font-size: 0.65rem; background: #e2e8f0; color: #4a5568;">▼</button>
+	                </div>
+	                <strong>${fee.name}</strong>
+	                <input type="number" value="${fee.value}" step="0.001" style="padding:4px; max-width:65px;">
+	                <span>${fee.type === 'percent' ? '%' : '$'}</span>
+	            </div>
+	            <span class="remove-node" style="cursor:pointer; font-weight:bold; padding: 4px;">&times;</span>
+	        `;
+	
+	        // Handle Up / Down movements via tapping
+	        node.querySelectorAll('.arrow-move-btn').forEach(btn => {
+	            btn.addEventListener('click', (e) => {
+	                e.stopPropagation();
+	                const direction = btn.getAttribute('data-dir');
+	                if (direction === 'up' && index > 0) {
+	                    // Swap with the item above
+	                    const temp = feePipeline[index];
+	                    feePipeline[index] = feePipeline[index - 1];
+	                    feePipeline[index - 1] = temp;
+	                } else if (direction === 'down' && index < feePipeline.length - 1) {
+	                    // Swap with the item below
+	                    const temp = feePipeline[index];
+	                    feePipeline[index] = feePipeline[index + 1];
+	                    feePipeline[index + 1] = temp;
+	                }
+	                renderPipeline();
+	                calculateTotals();
+	            });
+	        });
+	
+	        node.querySelector('input').addEventListener('input', (e) => {
+	            fee.value = parseFloat(e.target.value) || 0;
+	            calculateTotals();
+	        });
+	
+	        node.querySelector('.remove-node').addEventListener('click', () => {
+	            feePipeline = feePipeline.filter(f => f.id !== fee.id);
+	            renderPipeline();
+	            calculateTotals();
+	        });
+	
+	        // Retain desktop drag fallback
+	        node.addEventListener('dragstart', () => { activeDraggedNodeIndex = index; node.classList.add('drag-active'); });
+	        node.addEventListener('dragend', () => { activeDraggedNodeIndex = null; node.classList.remove('drag-active'); });
+	        node.addEventListener('dragover', (e) => {
+	            e.preventDefault();
+	            if (index === activeDraggedNodeIndex) return;
+	            const target = feePipeline.splice(activeDraggedNodeIndex, 1)[0];
+	            feePipeline.splice(index, 0, target);
+	            activeDraggedNodeIndex = index;
+	            renderPipeline();
+	            calculateTotals();
+	        });
+	
+	        pipelineContainer.appendChild(node);
+	
+	        if (index < feePipeline.length - 1) {
+	            const linkContainer = document.createElement('div');
+	            linkContainer.className = 'tandem-link-container';
+	            linkContainer.innerHTML = `
+	                <div class="tandem-line-hook ${isCurrentLinked ? 'linked' : ''}"></div>
+	                <button class="link-btn ${isCurrentLinked ? 'linked' : ''}">
+	                    ${isCurrentLinked ? '🔗 Linked Tandem' : '➕ Link Tandem'}
+	                </button>
+	            `;
+	            linkContainer.querySelector('.link-btn').addEventListener('click', () => {
+	                fee.linkedToNext = !fee.linkedToNext;
+	                renderPipeline();
+	                calculateTotals();
+	            });
+	            pipelineContainer.appendChild(linkContainer);
+	        }
+	        insideTandemGroup = isCurrentLinked;
+	    });
+	}
 
     function calculateTotals() {
         if (people.length === 0) {
