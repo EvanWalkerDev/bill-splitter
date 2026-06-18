@@ -620,18 +620,20 @@
 	        node.className = `fee-node ${visuallyInTandem ? 'in-tandem' : ''}`;
 	        node.setAttribute('draggable', 'true');
 	        
-	        // Added tap-friendly 🔼 and 🔽 buttons on the left side of the item card
+	        // Repositioned up/down arrows to live between the unit indicator and the delete cross
 	        node.innerHTML = `
-	            <div class="node-details">
-	                <div style="display: flex; flex-direction: column; gap: 2px; margin-right: 8px;">
-	                    <button class="arrow-move-btn" data-dir="up" style="padding: 2px 6px; font-size: 0.65rem; background: #e2e8f0; color: #4a5568;">▲</button>
-	                    <button class="arrow-move-btn" data-dir="down" style="padding: 2px 6px; font-size: 0.65rem; background: #e2e8f0; color: #4a5568;">▼</button>
-	                </div>
+	            <div class="node-details" style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
 	                <strong>${fee.name}</strong>
-	                <input type="number" value="${fee.value}" step="0.001" style="padding:4px; max-width:65px;">
-	                <span>${fee.type === 'percent' ? '%' : '$'}</span>
+	                <input type="number" value="${fee.value}" step="0.001" style="padding:6px; max-width:65px; margin-left: auto;">
+	                <span style="min-width: 12px; font-weight: 500;">${fee.type === 'percent' ? '%' : '$'}</span>
 	            </div>
-	            <span class="remove-node" style="cursor:pointer; font-weight:bold; padding: 4px;">&times;</span>
+	            
+	            <div style="display: flex; flex-direction: column; gap: 2px; margin: 0 12px 0 8px;">
+	                <button class="arrow-move-btn" data-dir="up" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▲</button>
+	                <button class="arrow-move-btn" data-dir="down" style="background: #e2e8f0; color: #4a5568; padding: 2px 6px; font-size: 0.55rem; line-height: 1; border-radius: 3px; width: 24px; height: 15px; font-weight: normal; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">▼</button>
+	            </div>
+	            
+	            <span class="remove-node" style="cursor:pointer; font-weight:bold; padding: 4px; font-size: 1.1rem; color: #a0aec0; display: inline-block;">&times;</span>
 	        `;
 	
 	        // Handle Up / Down movements via tapping
@@ -640,12 +642,10 @@
 	                e.stopPropagation();
 	                const direction = btn.getAttribute('data-dir');
 	                if (direction === 'up' && index > 0) {
-	                    // Swap with the item above
 	                    const temp = feePipeline[index];
 	                    feePipeline[index] = feePipeline[index - 1];
 	                    feePipeline[index - 1] = temp;
 	                } else if (direction === 'down' && index < feePipeline.length - 1) {
-	                    // Swap with the item below
 	                    const temp = feePipeline[index];
 	                    feePipeline[index] = feePipeline[index + 1];
 	                    feePipeline[index + 1] = temp;
@@ -666,7 +666,7 @@
 	            calculateTotals();
 	        });
 	
-	        // Retain desktop drag fallback
+	        // Desktop drag mechanics fallback
 	        node.addEventListener('dragstart', () => { activeDraggedNodeIndex = index; node.classList.add('drag-active'); });
 	        node.addEventListener('dragend', () => { activeDraggedNodeIndex = null; node.classList.remove('drag-active'); });
 	        node.addEventListener('dragover', (e) => {
